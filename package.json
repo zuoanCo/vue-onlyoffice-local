@@ -1,0 +1,52 @@
+{
+  "name": "vue-onlyoffice-local",
+  "version": "1.0.0",
+  "description": "A professional Vue 3 plugin for local OnlyOffice editing without server",
+  "main": "./dist/vue-onlyoffice-local.umd.js",
+  "module": "./dist/vue-onlyoffice-local.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/vue-onlyoffice-local.mjs",
+      "require": "./dist/vue-onlyoffice-local.umd.js"
+    },
+    "./style.css": "./dist/style.css"
+  },
+  "files": [
+    "dist",
+    "README_CN.md"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "test": "vitest",
+    "preview": "vite preview",
+    "dev:playground": "vite dev --config vite.config.playground.ts"
+  },
+  "keywords": [
+    "vue",
+    "vue3",
+    "onlyoffice",
+    "local",
+    "wasm",
+    "editor"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "vue": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.10",
+    "@vitejs/plugin-vue": "^4.0.0",
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^27.4.0",
+    "typescript": "^5.0.0",
+    "vite": "^4.0.0",
+    "vite-plugin-dts": "^2.0.0",
+    "vitest": "^4.0.18",
+    "vue": "^3.2.0",
+    "vue-tsc": "^3.2.4"
+  }
+}
