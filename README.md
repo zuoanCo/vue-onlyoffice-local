@@ -1,5 +1,8 @@
 # Vue OnlyOffice Local
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-black?logo=github)](https://github.com/zuoanCo/vue-onlyoffice-local)
+
 [English](./README.md) | [中文](./README_CN.md)
 
 A professional Vue 3 plugin for **purely local** OnlyOffice document editing, based on the architecture of [onlyoffice-web-local](https://github.com/sweetwisdom/onlyoffice-web-local).

@@ -1,5 +1,8 @@
 # Vue OnlyOffice Local
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-black?logo=github)](https://github.com/zuoanCo/vue-onlyoffice-local)
+
 [English](./README.md) | [中文](./README_CN.md)
 
 一个专业的 Vue 3 插件，用于实现 **纯本地** 的 OnlyOffice 文档编辑功能。本项目基于 [onlyoffice-web-local](https://github.com/sweetwisdom/onlyoffice-web-local) 的架构开发。
