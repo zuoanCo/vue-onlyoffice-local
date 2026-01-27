@@ -1,5 +1,5 @@
 {
-  "name": "vue-onlyoffice-local",
+  "name": "@zzk-1015/vue-onlyoffice-local",
   "version": "1.0.0",
   "description": "A professional Vue 3 plugin for local OnlyOffice editing without server",
   "main": "./dist/vue-onlyoffice-local.umd.js",
