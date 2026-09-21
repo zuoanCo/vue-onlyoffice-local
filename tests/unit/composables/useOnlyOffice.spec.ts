@@ -1,177 +1,161 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useOnlyOffice } from '../../../src/composables/useOnlyOffice';
-import { ref, nextTick } from 'vue';
-import * as scriptLoader from '../../../src/utils/scriptLoader';
+import { ref, nextTick, defineComponent, h } from 'vue';
+import type { OfficeEditor } from '../../../src/sdk';
 
-// Mock scriptLoader
-vi.mock('../../../src/utils/scriptLoader', () => ({
-  loadScript: vi.fn().mockResolvedValue(undefined),
-}));
+import * as sdkModule from '../../../src/sdk';
 
-describe('useOnlyOffice', () => {
-  let mockDocsAPI: any;
-  let mockDocEditor: any;
+// Mock the SDK so the createEditor() entry point can be observed without
+// touching the real Editor's iframe / docsapi.js loading chain.
+vi.mock('../../../src/sdk', async () => {
+  const actual = await vi.importActual<typeof import('../../../src/sdk')>(
+    '../../../src/sdk',
+  );
+  return {
+    ...actual,
+    createEditor: vi.fn(),
+    loadApi: vi.fn().mockResolvedValue(undefined),
+    bufferToBlobUrl: vi.fn().mockReturnValue('blob:mock-url'),
+  };
+});
+
+const createEditorMock = sdkModule.createEditor as unknown as ReturnType<typeof vi.fn>;
+
+function buildTestHarness(props: Record<string, unknown>, emit?: (name: string, ...args: unknown[]) => void) {
+  return defineComponent({
+    template: '<div ref="containerRef"></div>',
+    setup() {
+      return useOnlyOffice(
+        props as never,
+        (emit ?? (() => {})) as never,
+      );
+    },
+  });
+}
+
+describe('useOnlyOffice (v2.0.0 / oo-offline SDK)', () => {
+  let mockEditor: OfficeEditor;
 
   beforeEach(() => {
-    // Reset DOM and Window mocks
     vi.clearAllMocks();
-    
-    mockDocEditor = {
-      destroyEditor: vi.fn(),
+    mockEditor = {
+      save: vi.fn().mockResolvedValue({
+        buffer: new ArrayBuffer(8),
+        fileName: 'mock.docx',
+        fileType: 'docx',
+      }),
+      destroy: vi.fn(),
+      getDocEditor: vi.fn(),
     };
-
-    mockDocsAPI = {
-      DocEditor: vi.fn().mockImplementation(() => mockDocEditor),
-    };
-
-    // Default: DocsAPI exists (simulating already loaded or mocked)
-    // For tests that check loading logic, we will explicitly unset it.
-    window.DocsAPI = mockDocsAPI;
+    createEditorMock.mockResolvedValue(mockEditor);
+    // jsdom lacks .querySelector('iframe') etc.; nothing to reset.
   });
 
-  it('should initialize editor when mounted', async () => {
-    // Simulate SDK not loaded yet
-    // @ts-ignore
-    delete window.DocsAPI;
-
-    // Mock loadScript to set window.DocsAPI when called
-    (scriptLoader.loadScript as any).mockImplementation(async () => {
-       window.DocsAPI = mockDocsAPI;
-    });
-
-    const props: any = {
-      sdkUrl: 'sdk.js',
-      file: 'test.docx',
-      fileName: 'test.docx',
-    };
-    
-    // Mock container
-    const container = document.createElement('div');
-    container.id = 'test-container';
-
-    // We need to simulate the component lifecycle manually or mock ref
-    // Since useOnlyOffice uses onMounted, we can't easily trigger it without mounting a component.
-    // However, we can call initEditor if we expose it or just test the side effects if we could run setup.
-    // But testing composables that rely on lifecycle hooks is best done within a test component or using a helper.
-    // Here we will mock the lifecycle hooks or just test the returned logic if exposed.
-    // Wait, useOnlyOffice does not expose initEditor. It runs it onMounted.
-    
-    // Strategy: Use a dummy component to test the composable integration
-    const { mount } = await import('@vue/test-utils');
-    const TestComponent = {
-      template: '<div ref="containerRef"></div>',
-      setup() {
-        const { containerRef, editorInstance, isLoading, error } = useOnlyOffice(props, (name: string, payload: any) => {});
-        return { containerRef, editorInstance, isLoading, error };
-      }
-    };
-
-    const wrapper = mount(TestComponent);
-    
-    // Wait for async init
-    await new Promise(r => setTimeout(r, 0));
-    await nextTick();
-
-    expect(scriptLoader.loadScript).toHaveBeenCalledWith('sdk.js', 'onlyoffice-sdk');
-    expect(window.DocsAPI.DocEditor).toHaveBeenCalled();
-    expect(wrapper.vm.isLoading).toBe(false);
-    expect(wrapper.vm.editorInstance).toBeDefined();
-  });
-
-  it('should handle initialization errors', async () => {
-    // Mock script load failure
-    (scriptLoader.loadScript as any).mockRejectedValueOnce(new Error('Network Error'));
-    window.DocsAPI = undefined; // Ensure check fails if script doesn't load
-
-    const props: any = { sdkUrl: 'bad-url.js' };
-    
-    const { mount } = await import('@vue/test-utils');
-    const TestComponent = {
-      template: '<div ref="containerRef"></div>',
-      setup() {
-        const emit = vi.fn();
-        const result = useOnlyOffice(props, emit);
-        return { ...result, emit };
-      }
-    };
-
-    const wrapper = mount(TestComponent);
-
-    await new Promise(r => setTimeout(r, 0));
-    await nextTick();
-
-    expect(wrapper.vm.isLoading).toBe(false);
-    expect(wrapper.vm.error).toBeTruthy();
-    expect(wrapper.vm.error?.message).toContain('Network Error');
-    expect(wrapper.vm.emit).toHaveBeenCalledWith('error', expect.any(Error));
-  });
-
-  it('should construct correct config', async () => {
-    const props: any = {
-      sdkUrl: 'sdk.js',
-      file: 'my-file.xlsx',
-      fileName: 'test.xlsx',
-      fileType: 'xlsx',
-      config: {
-        editorConfig: {
-          lang: 'de',
-        }
-      }
+  it('mounts the editor via createEditor() and exposes the imperative handle', async () => {
+    const props = {
+      baseUrl: '/',
+      fileName: 'hello.docx',
+      fileType: 'docx',
     };
 
     const { mount } = await import('@vue/test-utils');
-    const TestComponent = {
-      template: '<div ref="containerRef"></div>',
-      setup() {
-        return useOnlyOffice(props, () => {});
-      }
-    };
-
-    mount(TestComponent);
-    await new Promise(r => setTimeout(r, 0));
+    const wrapper = mount(buildTestHarness(props));
+    await new Promise((r) => setTimeout(r, 0));
     await nextTick();
 
-    const callArgs = (window.DocsAPI.DocEditor as any).mock.calls[0];
-    const config = callArgs[1];
+    expect(createEditorMock).toHaveBeenCalledTimes(1);
+    const opts = createEditorMock.mock.calls[0][0];
+    expect(opts.baseUrl).toBe('/');
+    expect(opts.document.fileType).toBe('docx');
+    expect(opts.document.title).toBe('hello.docx');
+    expect(typeof opts.onReady).toBe('function');
+    expect(typeof opts.onDocumentReady).toBe('function');
+    expect(typeof opts.onError).toBe('function');
+    expect(typeof opts.onStateChange).toBe('function');
+    expect(typeof opts.onRequestClose).toBe('function');
+    expect(typeof opts.onMetaChange).toBe('function');
 
-    expect(config.document.fileType).toBe('xlsx');
-    expect(config.document.title).toBe('test.xlsx');
-    expect(config.document.url).toBe('my-file.xlsx');
-    expect(config.editorConfig.lang).toBe('de');
+    const inst = (wrapper.vm as unknown as { editorInstance: { save: unknown; destroy: unknown } }).editorInstance;
+    expect(typeof inst.save).toBe('function');
+    expect(typeof inst.destroy).toBe('function');
+
+    wrapper.unmount();
+    expect(mockEditor.destroy).toHaveBeenCalled();
   });
 
-  it('should apply configHook middleware', async () => {
-    const props: any = {
-      sdkUrl: 'sdk.js',
-      file: 'doc.docx',
-      configHook: async (cfg: any) => {
-        return {
-          ...cfg,
-          editorConfig: {
-            ...cfg.editorConfig,
-            mode: 'view',
-          },
-          token: 'modified-token'
-        };
-      }
+  it('turns a Blob / File into a blob URL through bufferToBlobUrl()', async () => {
+    const file = new File(['hello world'], 'note.txt', { type: 'text/plain' });
+    const props = {
+      baseUrl: '/',
+      file,
     };
 
     const { mount } = await import('@vue/test-utils');
-    const TestComponent = {
-      template: '<div ref="containerRef"></div>',
-      setup() {
-        return useOnlyOffice(props, () => {});
-      }
-    };
-
-    mount(TestComponent);
-    await new Promise(r => setTimeout(r, 0));
+    mount(buildTestHarness(props));
+    await new Promise((r) => setTimeout(r, 0));
     await nextTick();
 
-    const callArgs = (window.DocsAPI.DocEditor as any).mock.calls[0];
-    const config = callArgs[1];
+    expect(sdkModule.bufferToBlobUrl).toHaveBeenCalled();
+    const opts = createEditorMock.mock.calls[0][0];
+    expect(opts.document.url).toBe('blob:mock-url');
+    expect(opts.document.fileType).toBe('txt');
+    expect(opts.document.title).toBe('note.txt');
+  });
 
-    expect(config.editorConfig.mode).toBe('view');
-    expect(config.token).toBe('modified-token');
+  it('handles createEditor() rejection and surfaces it via the emit', async () => {
+    createEditorMock.mockRejectedValueOnce(new Error('Network Error'));
+    const emit = vi.fn();
+
+    const { mount } = await import('@vue/test-utils');
+    const wrapper = mount(buildTestHarness({}, emit));
+    await new Promise((r) => setTimeout(r, 0));
+    await nextTick();
+
+    expect((wrapper.vm as unknown as { isLoading: boolean }).isLoading).toBe(false);
+    const err = (wrapper.vm as unknown as { error: Error | null }).error;
+    expect(err).toBeTruthy();
+    expect(err?.message).toBe('Network Error');
+    expect(emit).toHaveBeenCalledWith('error', expect.any(Error));
+  });
+
+  it('lets configHook mutate the resolved document fields', async () => {
+    const props = {
+      baseUrl: '/',
+      fileName: 'a.docx',
+      fileType: 'docx',
+      configHook: async (cfg: { document?: Record<string, unknown> }) => ({
+        ...cfg,
+        document: {
+          ...(cfg.document || {}),
+          title: 'overridden.docx',
+          url: 'https://example.com/overridden.docx',
+        },
+      }),
+    };
+
+    const { mount } = await import('@vue/test-utils');
+    mount(buildTestHarness(props));
+    await new Promise((r) => setTimeout(r, 0));
+    await nextTick();
+
+    const opts = createEditorMock.mock.calls[0][0];
+    expect(opts.document.title).toBe('overridden.docx');
+    expect(opts.document.url).toBe('https://example.com/overridden.docx');
+  });
+
+  it('passes mode=view through to createEditor()', async () => {
+    const props = {
+      baseUrl: '/',
+      fileName: 'a.docx',
+      mode: 'view' as const,
+    };
+
+    const { mount } = await import('@vue/test-utils');
+    mount(buildTestHarness(props));
+    await new Promise((r) => setTimeout(r, 0));
+    await nextTick();
+
+    const opts = createEditorMock.mock.calls[0][0];
+    expect(opts.mode).toBe('view');
   });
 });
