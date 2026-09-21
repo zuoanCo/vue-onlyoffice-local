@@ -1,200 +1,283 @@
 import { ref, onMounted, onUnmounted, watch, inject } from 'vue';
-import { loadScript } from '../utils/scriptLoader';
-import { initX2T, convertDocument } from '../utils/x2t';
-import type { VueOnlyOfficeLocalProps, OnlyOfficeConfig, VueOnlyOfficeLocalOptions } from '../types/index';
+import {
+  createEditor,
+  bufferToBlobUrl,
+  normalizeExtension,
+  type OfficeEditor,
+  type SaveResult,
+} from '../sdk';
+import type {
+  VueOnlyOfficeLocalProps,
+  OnlyOfficeConfig,
+  VueOnlyOfficeLocalOptions,
+} from '../types/index';
 
-declare global {
-  interface Window {
-    DocsAPI: any;
-    DocEditor: any;
-  }
-}
+/**
+ * Vue 3 composable that wraps the upstream createEditor() imperative API
+ * (vendored under src/sdk/) so existing plugin props keep working while the
+ * underlying editor follows the v2.0.0 oo-offline architecture:
+ *  - DocsAPI (api.js) loaded from <baseUrl>/vendor/web-apps/apps/api/documents/api.js
+ *  - local File / Blob opened as a blob URL via bufferToBlobUrl() (no X2T WASM)
+ *  - imperative editor.save() returns a SaveResult via postMessage file-stream hook
+ *  - state / request-close / meta events are surfaced as Vue emits
+ */
+export function useOnlyOffice(
+  props: VueOnlyOfficeLocalProps,
+  emit: (event: string, ...args: unknown[]) => void,
+) {
+  const globalOptions = inject<VueOnlyOfficeLocalOptions>(
+    'vueOnlyOfficeLocalOptions',
+    {},
+  );
 
-export function useOnlyOffice(props: VueOnlyOfficeLocalProps, emit: any) {
-  const globalOptions = inject<VueOnlyOfficeLocalOptions>('vueOnlyOfficeLocalOptions', {});
-  
   const containerRef = ref<HTMLElement | null>(null);
-  const editorInstance = ref<any>(null);
+  const editorInstance = ref<OfficeEditor | null>(null);
+  const ownedBlobUrl = ref<string | null>(null);
   const isLoading = ref(true);
   const error = ref<Error | null>(null);
 
-  const getSdkUrl = () => props.sdkUrl || globalOptions.defaultSdkUrl || 'libs/sdk.js';
-  const getX2tUrl = () => props.x2tUrl || globalOptions.defaultX2tUrl || 'libs/x2t.js';
+  const resolveBaseUrl = (): string =>
+    props.baseUrl ?? globalOptions.defaultBaseUrl ?? '/';
+
+  /** @deprecated kept for backward compatibility with v1.0.x; not used by the new SDK. */
+  const getSdkUrl = (): string =>
+    props.sdkUrl ?? globalOptions.defaultSdkUrl ?? 'libs/sdk.js';
+
+  /** @deprecated kept for backward compatibility with v1.0.x; x2t WASM is no longer required. */
+  const getX2tUrl = (): string =>
+    props.x2tUrl ?? globalOptions.defaultX2tUrl ?? 'libs/x2t.js';
+
+  const detectFileType = (): string => {
+    if (props.fileType) return normalizeExtension(props.fileType);
+    if (typeof props.file === 'string') {
+      return normalizeExtension(props.file.split('.').pop() || '');
+    }
+    if (props.file instanceof File || props.file instanceof Blob) {
+      const name = (props.file as File).name || '';
+      return normalizeExtension(name.split('.').pop() || '');
+    }
+    return 'docx';
+  };
+
+  const resolveTitle = (): string => {
+    if (props.fileName) return props.fileName;
+    if (typeof props.file === 'string') {
+      const segs = props.file.split('?')[0].split('/');
+      return segs[segs.length - 1] || 'Document';
+    }
+    if (props.file instanceof File) return props.file.name || 'Document';
+    return 'Document';
+  };
+
+  const resolveUser = (): { id?: string; name?: string } => {
+    const fromGlobal =
+      (globalOptions.globalConfig?.editorConfig?.user as
+        | { id?: string; name?: string }
+        | undefined) || {};
+    const fromProps =
+      (props.config?.editorConfig?.user as
+        | { id?: string; name?: string }
+        | undefined) || {};
+    return { ...fromGlobal, ...fromProps };
+  };
+
+  const buildBaseConfig = (): OnlyOfficeConfig => ({
+    document: {
+      fileType: detectFileType(),
+      title: resolveTitle(),
+      permissions: {
+        edit: props.mode !== 'view',
+        download: true,
+        print: true,
+      },
+      ...globalOptions.globalConfig?.document,
+      ...props.config?.document,
+    },
+    editorConfig: {
+      lang: 'zh-CN',
+      mode: props.mode === 'view' ? 'view' : 'edit',
+      user: resolveUser(),
+      ...globalOptions.globalConfig?.editorConfig,
+      ...props.config?.editorConfig,
+    },
+    width: props.width ?? '100%',
+    height: props.height ?? '100%',
+    ...globalOptions.globalConfig,
+    ...props.config,
+  });
+
+  const resolveDocumentForSdk = async (): Promise<{
+    url?: string;
+    fileType: string;
+    title: string;
+  }> => {
+    const base = buildBaseConfig();
+    const baseDoc = base.document || {};
+    const fileType = baseDoc.fileType || detectFileType();
+    const title = baseDoc.title || resolveTitle();
+
+    if (typeof props.file === 'string') {
+      const raw = props.file.trim();
+      if (/^https?:\/\//i.test(raw) || raw.startsWith('blob:') || raw.startsWith('data:')) {
+        try {
+          const res = await fetch(raw);
+          if (res.ok) {
+            const blob = await res.blob();
+            const url = bufferToBlobUrl(
+              blob,
+              normalizeExtension(fileType || blob.type || ''),
+            );
+            ownedBlobUrl.value = url;
+            return { url, fileType, title };
+          }
+        } catch (err) {
+          console.warn(
+            '[vue-onlyoffice-local] fetch+blobUrl failed, falling back to URL:',
+            err,
+          );
+        }
+      }
+      return { url: raw, fileType, title };
+    }
+
+    if (props.file instanceof Blob) {
+      const url = bufferToBlobUrl(
+        props.file,
+        normalizeExtension(fileType || props.file.type || ''),
+      );
+      ownedBlobUrl.value = url;
+      return { url, fileType, title };
+    }
+
+    return { fileType, title };
+  };
 
   const initEditor = async () => {
     if (!containerRef.value) return;
-    
     isLoading.value = true;
     error.value = null;
 
     try {
-      // 1. Load SDK
-      const sdkUrl = getSdkUrl();
-      if (!window.DocsAPI && sdkUrl) {
-        await loadScript(sdkUrl, 'onlyoffice-sdk');
+      const baseUrl = resolveBaseUrl();
+
+      let documentPayload = await resolveDocumentForSdk();
+
+      if (props.configHook && documentPayload) {
+        const cfgBase = buildBaseConfig();
+        const mutated = await props.configHook(cfgBase);
+        if (mutated && mutated.document) {
+          documentPayload = {
+            url: mutated.document.url ?? documentPayload.url,
+            fileType: normalizeExtension(
+              mutated.document.fileType || documentPayload.fileType,
+            ),
+            title: mutated.document.title || documentPayload.title,
+          };
+        }
       }
 
-      if (!window.DocsAPI) {
-        throw new Error('OnlyOffice SDK not found. Please provide valid sdkUrl.');
-      }
-
-      // 2. Initialize X2T and convert document if it's a local file or a URL we want to convert
-      let documentData: { bin: Uint8Array; media?: any } | null = null;
-      let fileToConvert: File | null = null;
-      
-      if (props.file instanceof File) {
-          fileToConvert = props.file;
-      } else if (typeof props.file === 'string' && props.file.trim() !== '') {
-          // Attempt to fetch if it looks like a URL
-          try {
-              console.log('Fetching document from URL:', props.file);
-              const response = await fetch(props.file);
-              if (!response.ok) throw new Error(`Fetch failed: ${response.statusText}`);
-              
-              const blob = await response.blob();
-              const urlParts = props.file.split('/');
-              const fileName = urlParts[urlParts.length - 1] || 'document.docx';
-              
-              fileToConvert = new File([blob], fileName, { type: blob.type });
-          } catch (e) {
-              console.warn('Failed to fetch/convert URL to local file. Falling back to default URL loading.', e);
-              // If fetch fails (e.g. CORS), we leave fileToConvert as null.
-              // The editor will try to load it via URL in config (standard behavior).
-          }
-      }
-
-      if (fileToConvert) {
-          const x2tUrl = getX2tUrl();
-          await initX2T(x2tUrl);
-          documentData = await convertDocument(fileToConvert);
-      }
-
-      // 3. Initialize Editor
-      const id = containerRef.value.id || 'onlyoffice-editor-' + Math.random().toString(36).substr(2, 9);
+      const id =
+        containerRef.value.id ||
+        'onlyoffice-editor-' + Math.random().toString(36).slice(2, 11);
       containerRef.value.id = id;
 
-      let finalConfig = await prepareConfig();
-      
-      // Apply middleware hook if present
-      if (props.configHook) {
-        finalConfig = await props.configHook(finalConfig);
-      }
-      
-      // If we have converted data, we don't set the URL in the config, 
-      // but we need to ensure permissions allow editing if intended.
-      // And we need to inject the events to open the document.
-      
-      const onAppReadyOriginal = finalConfig.events?.onAppReady;
-      
-      finalConfig.events = {
-          ...finalConfig.events,
-          onAppReady: (e: any) => {
-              if (onAppReadyOriginal) {
-                  onAppReadyOriginal(e);
-              }
-              
-              if (documentData && editorInstance.value) {
-                  // Set media URLs if any
-                  if (documentData.media) {
-                      editorInstance.value.sendCommand({
-                          command: 'asc_setImageUrls',
-                          data: { urls: documentData.media },
-                      });
-                  }
-                  
-                  // Open the document binary
-                  editorInstance.value.sendCommand({
-                      command: 'asc_openDocument',
-                      data: { buf: documentData.bin },
-                  });
-              }
-          }
-      };
+      const editor = await createEditor({
+        container: containerRef.value,
+        baseUrl,
+        document: documentPayload,
+        lang:
+          props.config?.editorConfig?.lang ??
+          globalOptions.globalConfig?.editorConfig?.lang ??
+          'zh-CN',
+        mode: props.mode,
+        user: resolveUser(),
+        width: props.width,
+        height: props.height,
+        onReady: () => {
+          emit('ready', editor);
+        },
+        onDocumentReady: () => {
+          isLoading.value = false;
+          emit('document-ready');
+        },
+        onError: (err: Error) => {
+          error.value = err;
+          isLoading.value = false;
+          emit('error', err);
+        },
+        onStateChange: (modified: boolean) => {
+          emit('state-change', modified);
+        },
+        onRequestClose: () => {
+          emit('request-close');
+        },
+        onMetaChange: (newTitle: string) => {
+          emit('meta-change', newTitle);
+        },
+      });
 
-      editorInstance.value = new window.DocsAPI.DocEditor(id, finalConfig);
-
-      emit('ready', editorInstance.value);
+      editorInstance.value = editor;
+      emit('ready', editor);
       isLoading.value = false;
-
-    } catch (err: any) {
-      error.value = err;
-      emit('error', err);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      error.value = e;
+      emit('error', e);
       isLoading.value = false;
     }
   };
 
-  const prepareConfig = async (): Promise<OnlyOfficeConfig> => {
-    // Base config
-    const config: OnlyOfficeConfig = {
-      document: {
-        fileType: props.fileType || (typeof props.file === 'string' ? props.file.split('.').pop() : (props.file instanceof File ? props.file.name.split('.').pop() : 'docx')),
-        title: props.fileName || (props.file instanceof File ? props.file.name : 'Document'),
-        permissions: {
-          edit: true,
-          download: true,
-        },
-        ...globalOptions.globalConfig?.document,
-        ...props.config?.document,
-      },
-      editorConfig: {
-        lang: 'en',
-        mode: 'edit',
-        customization: {
-            features: {
-                spellcheck: {
-                    mode: false,
-                }
-            }
-        },
-        ...globalOptions.globalConfig?.editorConfig,
-        ...props.config?.editorConfig,
-      },
-      ...globalOptions.globalConfig,
-      ...props.config,
-    };
-
-    // If file is provided, we might need to process it.
-    if (props.file) {
-      if (typeof props.file === 'string') {
-        config.document!.url = props.file;
-      } 
-      // Note: For Blob/File, we don't set url here anymore if we are doing local conversion.
-      // We rely on asc_openDocument command.
-      // However, OnlyOffice might complain if url is missing in some versions, 
-      // so we might set a dummy one or the file name.
-      else if (props.file instanceof File) {
-          config.document!.url = props.file.name;
-      }
-    }
-
-    return config;
+  const saveEditor = async (format?: string): Promise<SaveResult | null> => {
+    if (!editorInstance.value) return null;
+    return editorInstance.value.save(format);
   };
 
   const destroyEditor = () => {
-    if (editorInstance.value && editorInstance.value.destroyEditor) {
-      editorInstance.value.destroyEditor();
+    try {
+      editorInstance.value?.destroy();
+    } catch {
+      /* ignore */
     }
     editorInstance.value = null;
+    if (ownedBlobUrl.value) {
+      try {
+        URL.revokeObjectURL(ownedBlobUrl.value);
+      } catch {
+        /* ignore */
+      }
+      ownedBlobUrl.value = null;
+    }
   };
 
   onMounted(() => {
-    initEditor();
+    void initEditor();
   });
 
   onUnmounted(() => {
     destroyEditor();
   });
 
-  watch(() => props.file, () => {
-    // Reload editor if file changes
-    destroyEditor();
-    initEditor();
-  });
+  watch(
+    () => [
+      props.file,
+      props.fileName,
+      props.fileType,
+      props.config,
+      props.mode,
+      props.baseUrl,
+    ],
+    () => {
+      destroyEditor();
+      void initEditor();
+    },
+    { deep: true },
+  );
 
   return {
     containerRef,
     isLoading,
     error,
     editorInstance,
+    saveEditor,
   };
 }

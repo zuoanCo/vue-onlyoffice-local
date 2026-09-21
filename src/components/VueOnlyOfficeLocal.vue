@@ -20,25 +20,13 @@
 
 <script setup lang="ts">
 import { useOnlyOffice } from '../composables/useOnlyOffice';
-import type { OnlyOfficeConfig } from '../types/index';
-
-export interface VueOnlyOfficeLocalProps {
-  sdkUrl?: string;
-  x2tUrl?: string;
-  file?: string | Blob | File;
-  fileName?: string;
-  fileType?: string;
-  config?: OnlyOfficeConfig;
-  theme?: 'light' | 'dark';
-  configHook?: (config: OnlyOfficeConfig) => Promise<OnlyOfficeConfig> | OnlyOfficeConfig;
-}
-
-export interface VueOnlyOfficeLocalEmits {
-  (e: 'ready', editor: any): void;
-  (e: 'document-ready'): void;
-  (e: 'save', blob: Blob, fileName: string): void;
-  (e: 'error', error: Error): void;
-}
+import type {
+  VueOnlyOfficeLocalProps,
+  VueOnlyOfficeLocalEmits,
+  VueOnlyOfficeLocalExpose,
+  OfficeEditor,
+  SaveResult,
+} from '@/types/index';
 
 const props = withDefaults(defineProps<VueOnlyOfficeLocalProps>(), {
   theme: 'light',
@@ -46,11 +34,22 @@ const props = withDefaults(defineProps<VueOnlyOfficeLocalProps>(), {
 
 const emit = defineEmits<VueOnlyOfficeLocalEmits>();
 
-const { containerRef, isLoading, error, editorInstance } = useOnlyOffice(props, emit);
+const { containerRef, isLoading, error, editorInstance, saveEditor } = useOnlyOffice(
+  props as VueOnlyOfficeLocalProps,
+  emit as unknown as (event: string, ...args: unknown[]) => void,
+);
 
-// Expose editor instance to parent
-defineExpose({
-  editorInstance,
+/**
+ * Imperative handle exposed to parent via template ref.
+ * Added in v2.0.0:
+ *  - \`save(format?)\` triggers the editor's downloadAs and resolves
+ *    with a \`SaveResult\` (ArrayBuffer + fileName + fileType).
+ */
+defineExpose<VueOnlyOfficeLocalExpose>({
+  get editorInstance(): OfficeEditor | null {
+    return editorInstance.value;
+  },
+  save: (format?: string): Promise<SaveResult | null> => saveEditor(format),
 });
 </script>
 

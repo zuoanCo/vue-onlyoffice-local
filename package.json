@@ -1,7 +1,7 @@
 {
   "name": "@zzk-1015/vue-onlyoffice-local",
-  "version": "1.0.1",
-  "description": "A professional Vue 3 plugin for local OnlyOffice editing without server",
+  "version": "2.0.0",
+  "description": "A Vue 3 plugin for fully-local OnlyOffice document editing. Aligns with the upstream onlyoffice-web-local v2.0.0 oo-offline architecture (API.js loaded from a self-hosted OnlyOffice 9.x offline vendor build; documents opened as blob URLs; imperative save() via postMessage file-stream hook).",
   "main": "./dist/vue-onlyoffice-local.umd.js",
   "module": "./dist/vue-onlyoffice-local.mjs",
   "types": "./dist/index.d.ts",
