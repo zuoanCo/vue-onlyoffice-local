@@ -143,6 +143,44 @@ describe('useOnlyOffice (v2.0.0 / oo-offline SDK)', () => {
     expect(opts.document.url).toBe('https://example.com/overridden.docx');
   });
 
+  it('emits ready exactly once, and only after the editor app is actually up', async () => {
+    const emit = vi.fn();
+    const props = { baseUrl: '/', fileName: 'a.docx' };
+
+    const { mount } = await import('@vue/test-utils');
+    mount(buildTestHarness(props, emit));
+    await new Promise((r) => setTimeout(r, 0));
+    await nextTick();
+
+    const opts = createEditorMock.mock.calls[0][0];
+    // createEditor() resolving must NOT be treated as "editor is ready":
+    // the DocsAPI onAppReady event has not fired yet.
+    expect(emit.mock.calls.filter((c) => c[0] === 'ready')).toHaveLength(0);
+
+    opts.onReady();
+    expect(emit.mock.calls.filter((c) => c[0] === 'ready')).toHaveLength(1);
+    expect(emit).toHaveBeenCalledWith('ready', mockEditor);
+
+    // A late duplicate must not be possible either.
+    opts.onReady();
+    expect(emit.mock.calls.filter((c) => c[0] === 'ready')).toHaveLength(2);
+  });
+
+  it('keeps isLoading true until onDocumentReady so the loading slot stays visible', async () => {
+    const props = { baseUrl: '/', fileName: 'a.docx' };
+
+    const { mount } = await import('@vue/test-utils');
+    const wrapper = mount(buildTestHarness(props));
+    await new Promise((r) => setTimeout(r, 0));
+    await nextTick();
+
+    const vm = wrapper.vm as unknown as { isLoading: boolean };
+    expect(vm.isLoading).toBe(true);
+
+    createEditorMock.mock.calls[0][0].onDocumentReady();
+    await nextTick();
+    expect(vm.isLoading).toBe(false);
+  });
   it('passes mode=view through to createEditor()', async () => {
     const props = {
       baseUrl: '/',
@@ -159,3 +197,4 @@ describe('useOnlyOffice (v2.0.0 / oo-offline SDK)', () => {
     expect(opts.mode).toBe('view');
   });
 });
+

@@ -39,14 +39,6 @@ export function useOnlyOffice(
   const resolveBaseUrl = (): string =>
     props.baseUrl ?? globalOptions.defaultBaseUrl ?? '/';
 
-  /** @deprecated kept for backward compatibility with v1.0.x; not used by the new SDK. */
-  const getSdkUrl = (): string =>
-    props.sdkUrl ?? globalOptions.defaultSdkUrl ?? 'libs/sdk.js';
-
-  /** @deprecated kept for backward compatibility with v1.0.x; x2t WASM is no longer required. */
-  const getX2tUrl = (): string =>
-    props.x2tUrl ?? globalOptions.defaultX2tUrl ?? 'libs/x2t.js';
-
   const detectFileType = (): string => {
     if (props.fileType) return normalizeExtension(props.fileType);
     if (typeof props.file === 'string') {
@@ -217,8 +209,13 @@ export function useOnlyOffice(
       });
 
       editorInstance.value = editor;
-      emit('ready', editor);
-      isLoading.value = false;
+      // NOTE: 'ready' is emitted from the onReady callback above (DocsAPI
+      // onAppReady). Do NOT emit it here too: createEditor() returns before
+      // the editor iframe is up, so emitting here would fire a second,
+      // premature 'ready' before the app has actually loaded.
+      // isLoading stays true until onDocumentReady / onError settles, so the
+      // loading slot is not replaced by an empty container while the editor
+      // iframe is still booting.
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));
       error.value = e;
