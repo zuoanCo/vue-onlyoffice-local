@@ -23,12 +23,16 @@ This plugin lets you embed a fully functional OnlyOffice editor in your Vue 3 ap
 ## Installation
 
 ```bash
-npm install vue-onlyoffice-local
-# or
-yarn add vue-onlyoffice-local
-# or
-pnpm add vue-onlyoffice-local
+npm install @zzk-1015/vue-onlyoffice-local
 ```
+
+> ⚠️ **The npm `latest` tag is still `1.0.1`.** v2.0.0 only exists on GitHub so far, and
+> v1.0.x is exactly the build that fails with `Failed to load script: libs/sdk.js`.
+> Until `2.0.0` is published, install straight from the repository:
+>
+> ```bash
+> npm install github:zuoanCo/vue-onlyoffice-local
+> ```
 
 ## Prerequisites
 
@@ -50,8 +54,8 @@ Grab the vendor build from the upstream release: <https://github.com/sweetwisdom
 
 ```typescript
 import { createApp } from 'vue';
-import VueOnlyOfficeLocal from 'vue-onlyoffice-local';
-import 'vue-onlyoffice-local/dist/style.css';
+import VueOnlyOfficeLocal from '@zzk-1015/vue-onlyoffice-local';
+import '@zzk-1015/vue-onlyoffice-local/style.css';
 
 const app = createApp(App);
 app.use(VueOnlyOfficeLocal, {
@@ -87,7 +91,7 @@ app.mount('#app');
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { VueOnlyOfficeLocal } from 'vue-onlyoffice-local';
+import { VueOnlyOfficeLocal } from '@zzk-1015/vue-onlyoffice-local';
 
 const file = ref<File | null>(null);
 const fileName = ref('');
@@ -163,7 +167,7 @@ const onEditorError = (err: Error) => {
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue';
-import { VueOnlyOfficeLocal } from 'vue-onlyoffice-local';
+import { VueOnlyOfficeLocal } from '@zzk-1015/vue-onlyoffice-local';
 
 const editor = ref<InstanceType<typeof VueOnlyOfficeLocal> | null>(null);
 
@@ -187,7 +191,7 @@ async function onSaveClick() {
 The vendored `oo-offline` SDK is also re-exported for advanced users who want to skip the Vue component:
 
 ```typescript
-import { createEditor, bufferToBlobUrl } from 'vue-onlyoffice-local';
+import { createEditor, bufferToBlobUrl } from '@zzk-1015/vue-onlyoffice-local';
 
 const url = bufferToBlobUrl(file, 'docx');
 const editor = await createEditor({
@@ -220,6 +224,27 @@ This release is a behaviour-changing upgrade. Key differences from 1.0.x:
 
 Legacy `sdkUrl` / `x2tUrl` props are still accepted (ignored) so old callers don't crash, but you must serve the new vendor build for the editor to mount.
 
+## Troubleshooting
+
+Every failure below is reported verbatim through the `error` event / `error` slot.
+
+| Message | Cause | Fix |
+|---------|-------|-----|
+| `Failed to load script: libs/sdk.js` | You are running **v1.0.x** (this string only exists there; v2 never requests that URL). | Upgrade to 2.0.0 — see [Migration from 1.x](#migration-from-1x). |
+| `Failed to load api.js: <url>` | The offline build is missing or one directory level off. `<url>` is the exact path that 404-ed. | Make `<url>` return 200; `vendor/` must sit directly under `public/`. |
+| `DocsAPI not mounted; check baseUrl and the build path` | `api.js` was fetched (HTTP 200) but did not define `window.DocsAPI` — usually an HTML error page or SPA fallback served instead of the real file. | Check the response body in DevTools; fix your dev-server `publicDir` / rewrite rules. |
+| Editor iframe stays blank | The entry `api.js` loaded but `vendor/sdkjs/` is missing. | Copy the **whole** `vendor/` folder, not just `web-apps/`. |
+
+Quick check from the browser console:
+
+```js
+// must be 200 and start with the Ascensio copyright banner
+await fetch(`${baseUrl}vendor/web-apps/apps/api/documents/api.js`).then((r) => r.text())
+```
+
+A failed load is **not** cached: after fixing the asset path, re-mounting the component
+issues a fresh request.
+
 ## Development
 
 ### Project Setup
@@ -246,3 +271,4 @@ npm run build
 ## License
 
 MIT
+

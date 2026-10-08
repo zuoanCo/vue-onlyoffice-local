@@ -23,18 +23,22 @@
 ## 安装
 
 ```bash
-npm install vue-onlyoffice-local
-# or
-yarn add vue-onlyoffice-local
-# or
-pnpm add vue-onlyoffice-local
+npm install @zzk-1015/vue-onlyoffice-local
 ```
+
+> ⚠️ **npm 上的 `latest` 标签目前还是 `1.0.1`。** v2.0.0 只发布在 GitHub,而报
+> `Failed to load script: libs/sdk.js` 的正是 v1.0.x。在 `2.0.0` 发到 npm 之前,
+> 请直接从仓库安装:
+>
+> ```bash
+> npm install github:zuoanCo/vue-onlyoffice-local
+> ```
 
 ## 前置条件
 
 插件需要你自托管 OnlyOffice 9.x **离线构建**(同名同源路径),具体需要这些资源:
 
-- `<baseUrl>/vendor/web-apps/apps/documents/api.js`? 不,是 `<baseUrl>/vendor/web-apps/apps/api/documents/api.js`(DocsAPI 入口)
+- `<baseUrl>/vendor/web-apps/apps/api/documents/api.js`(DocsAPI 入口)
 - `<baseUrl>/vendor/sdkjs/`(编辑器内核)
 - `<baseUrl>/vendor/web-apps/`(编辑器 UI 应用)
 
@@ -50,8 +54,8 @@ pnpm add vue-onlyoffice-local
 
 ```typescript
 import { createApp } from 'vue';
-import VueOnlyOfficeLocal from 'vue-onlyoffice-local';
-import 'vue-onlyoffice-local/dist/style.css';
+import VueOnlyOfficeLocal from '@zzk-1015/vue-onlyoffice-local';
+import '@zzk-1015/vue-onlyoffice-local/style.css';
 
 const app = createApp(App);
 app.use(VueOnlyOfficeLocal, {
@@ -87,7 +91,7 @@ app.mount('#app');
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { VueOnlyOfficeLocal } from 'vue-onlyoffice-local';
+import { VueOnlyOfficeLocal } from '@zzk-1015/vue-onlyoffice-local';
 
 const file = ref<File | null>(null);
 const fileName = ref('');
@@ -153,7 +157,7 @@ const handleFileChange = (e: Event) => {
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue';
-import { VueOnlyOfficeLocal } from 'vue-onlyoffice-local';
+import { VueOnlyOfficeLocal } from '@zzk-1015/vue-onlyoffice-local';
 
 const editor = ref<InstanceType<typeof VueOnlyOfficeLocal> | null>(null);
 
@@ -175,7 +179,7 @@ async function onSaveClick() {
 ### 直接使用 SDK(跳过 Vue 组件)
 
 ```typescript
-import { createEditor, bufferToBlobUrl } from 'vue-onlyoffice-local';
+import { createEditor, bufferToBlobUrl } from '@zzk-1015/vue-onlyoffice-local';
 
 const url = bufferToBlobUrl(file, 'docx');
 const editor = await createEditor({
@@ -207,6 +211,26 @@ URL.revokeObjectURL(url);
 | `sdkUrl` / `x2tUrl` 必须 | 两者均已废弃,核心是 `baseUrl` |
 
 旧的 `sdkUrl` / `x2tUrl` 仍然接受(忽略),避免老调用方崩溃;但必须按新布局托管 vendor 构建,编辑器才能挂载。
+
+## 排查
+
+下面的报错都会原样出现在 `error` 事件 / `error` 插槽里。
+
+| 报错 | 原因 | 解决 |
+|------|------|------|
+| `Failed to load script: libs/sdk.js` | 你跑的是 **v1.0.x**(这句文案只存在于 v1,v2 根本不会请求这个地址) | 升级到 2.0.0,见[从 1.x 迁移](#从-1x-迁移) |
+| `Failed to load api.js: <url>` | 离线构建没放对或多套了一层目录,`<url>` 就是 404 的那个地址 | 让 `<url>` 返回 200,`vendor/` 要直接放在 `public/` 下 |
+| `DocsAPI not mounted; check baseUrl and the build path` | `api.js` 请求成功(HTTP 200)但没有挂上 `window.DocsAPI`,通常是返回了 HTML 错误页或 SPA fallback | 在 DevTools 里看响应体,修一下 `publicDir` / rewrite 规则 |
+| 编辑器 iframe 一直空白 | 入口 `api.js` 加载成功,但 `vendor/sdkjs/` 缺失 | 要拷**整个** `vendor/` 目录,不能只拷 `web-apps/` |
+
+可以在浏览器控制台快速验证:
+
+```js
+// 必须是 200,并且以 Ascensio 版权头开头
+await fetch(`${baseUrl}vendor/web-apps/apps/api/documents/api.js`).then((r) => r.text())
+```
+
+加载失败**不会被缓存**:把资源路径修好之后重新挂载组件,会重新发起请求。
 
 ## 开发
 
