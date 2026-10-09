@@ -16,14 +16,6 @@ Esta versión (2.0.0) replica la arquitectura del upstream: los documentos se ab
 npm install @zzk-1015/vue-onlyoffice-local
 ```
 
-> ⚠️ **La etiqueta `latest` de npm sigue en `1.0.1`.** v2.0.0 solo está en GitHub,
-> y la versión que falla con `Failed to load script: libs/sdk.js` es justamente v1.0.x.
-> Hasta que `2.0.0` se publique, instala desde el repositorio:
->
-> ```bash
-> npm install github:zuoanCo/vue-onlyoffice-local
-> ```
-
 ## Requisitos previos
 
 Necesitas servir el **build offline de OnlyOffice 9.x** desde el mismo origen que tu app Vue:
