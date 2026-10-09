@@ -36,14 +36,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          # npm requires Node >= 22.14.0 for trusted publishing. The bundled
-          # npm is older than the required 11.5.1, so upgrade it below.
-          node-version: '22.14.0'
+          # npm requires Node >= 22.14.0 for trusted publishing. Pin to the 22
+          # LTS line rather than the bare minimum so the runner also satisfies
+          # the engine range of the npm we install below.
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
           cache: npm
 
       - name: Upgrade npm
-        run: npm install -g npm@latest
+        # Pinned to the 11.x major, not @latest: trusted publishing only needs
+        # >= 11.5.1, while npm 12 requires node ^22.22.2 || ^24.15.0 || >=26.
+        # Tracking @latest would let a future npm release break this step on
+        # its own engine bump.
+        run: npm install -g npm@11
 
       - name: Install dependencies
         run: npm ci
