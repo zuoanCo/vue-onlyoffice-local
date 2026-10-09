@@ -1,0 +1,96 @@
+# Publish to npm via trusted publishing (OIDC).
+#
+# No NODE_AUTH_TOKEN and no 2FA prompt: npm trusts this workflow's GitHub
+# OIDC identity. Setup is one-time and lives in npm's web UI -
+# package settings -> GitHub Actions, with the workflow filename below.
+# Docs: https://docs.npmjs.com/trusted-publishers
+#
+# Requirement: npm will only honour a trusted publisher whose workflow file
+# already exists on the default branch, so this file must be merged into
+# master before the npm-side configuration is accepted.
+
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Build, test and pack only - do not publish"
+        type: boolean
+        default: false
+
+# id-token: write is what lets the runner exchange its OIDC token for an npm
+# short-lived credential. contents: read is all this job needs otherwise.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          # npm requires Node >= 22.14.0 for trusted publishing. The bundled
+          # npm is older than the required 11.5.1, so upgrade it below.
+          node-version: '22.14.0'
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check and build
+        run: npm run build
+
+      - name: Unit tests
+        # `npm test` is `vitest`, which would enter watch mode locally.
+        run: npx vitest run
+
+      # The integration self-test drives a real browser and looks up Edge /
+      # Chrome at Windows paths, so it only runs on a Windows dev machine.
+      # Keep it out of CI rather than let it fail on a missing binary.
+
+      - name: Resolve version
+        id: pkg
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "package version: $VERSION"
+
+      - name: Guard - refuse to overwrite an existing version
+        env:
+          VERSION: ${{ steps.pkg.outputs.version }}
+        run: |
+          if npm view "@zzk-1015/vue-onlyoffice-local@$VERSION" version >/dev/null 2>&1; then
+            echo "::error::v$VERSION is already on npm. Bump package.json first - published versions are immutable."
+            exit 1
+          fi
+          echo "OK: v$VERSION is not published yet."
+
+      - name: Pack
+        run: |
+          npm pack
+          ls -l ./*.tgz
+
+      - name: Publish
+        if: ${{ !inputs.dry-run }}
+        run: npm publish --provenance
+
+      - name: Summary
+        if: ${{ !inputs.dry-run }}
+        run: |
+          {
+            echo "### Published \`v${{ steps.pkg.outputs.version }}\`"
+            echo
+            echo "https://www.npmjs.com/package/@zzk-1015/vue-onlyoffice-local/v/${{ steps.pkg.outputs.version }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
