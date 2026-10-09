@@ -26,14 +26,6 @@ This plugin lets you embed a fully functional OnlyOffice editor in your Vue 3 ap
 npm install @zzk-1015/vue-onlyoffice-local
 ```
 
-> ⚠️ **The npm `latest` tag is still `1.0.1`.** v2.0.0 only exists on GitHub so far, and
-> v1.0.x is exactly the build that fails with `Failed to load script: libs/sdk.js`.
-> Until `2.0.0` is published, install straight from the repository:
->
-> ```bash
-> npm install github:zuoanCo/vue-onlyoffice-local
-> ```
-
 ## Prerequisites
 
 This plugin requires a self-hosted copy of the OnlyOffice 9.x **offline vendor build**. Concretely, you must serve these assets from the same origin as your Vue app:
@@ -271,4 +263,3 @@ npm run build
 ## License
 
 MIT
-

@@ -26,14 +26,6 @@
 npm install @zzk-1015/vue-onlyoffice-local
 ```
 
-> ⚠️ **npm 上的 `latest` 标签目前还是 `1.0.1`。** v2.0.0 只发布在 GitHub,而报
-> `Failed to load script: libs/sdk.js` 的正是 v1.0.x。在 `2.0.0` 发到 npm 之前,
-> 请直接从仓库安装:
->
-> ```bash
-> npm install github:zuoanCo/vue-onlyoffice-local
-> ```
-
 ## 前置条件
 
 插件需要你自托管 OnlyOffice 9.x **离线构建**(同名同源路径),具体需要这些资源:
