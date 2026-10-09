@@ -71,7 +71,10 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "package version: $VERSION"
 
+      # The guard protects a real publish. In a dry run it only reports, so
+      # that Pack still runs and the whole pipeline stays verifiable.
       - name: Guard - refuse to overwrite an existing version
+        if: ${{ !inputs.dry-run }}
         env:
           VERSION: ${{ steps.pkg.outputs.version }}
         run: |
@@ -80,6 +83,17 @@ jobs:
             exit 1
           fi
           echo "OK: v$VERSION is not published yet."
+
+      - name: Report version status (dry run)
+        if: ${{ inputs.dry-run }}
+        env:
+          VERSION: ${{ steps.pkg.outputs.version }}
+        run: |
+          if npm view "@zzk-1015/vue-onlyoffice-local@$VERSION" version >/dev/null 2>&1; then
+            echo "::warning::v$VERSION is already on npm; a real publish would be blocked by the guard."
+          else
+            echo "v$VERSION is not on npm yet - this run would publish it."
+          fi
 
       - name: Pack
         run: |
@@ -98,4 +112,3 @@ jobs:
             echo
             echo "https://www.npmjs.com/package/@zzk-1015/vue-onlyoffice-local/v/${{ steps.pkg.outputs.version }}"
           } >> "$GITHUB_STEP_SUMMARY"
-
