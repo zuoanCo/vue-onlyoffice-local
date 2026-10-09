@@ -31,17 +31,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          # npm requires Node >= 22.14.0 for trusted publishing. Pin to the 22
-          # LTS line rather than the bare minimum so the runner also satisfies
-          # the engine range of the npm we install below.
-          node-version: '22'
+          # npm requires Node >= 22.14.0 for trusted publishing; npm's own
+          # example uses 24, which is also the floor for npm 12.
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-          cache: npm
+          # npm docs: never use caching in release builds.
+          package-manager-cache: false
 
       - name: Upgrade npm
         # Pinned to the 11.x major, not @latest: trusted publishing only needs
@@ -119,6 +119,14 @@ jobs:
 
       - name: Publish
         if: ${{ !inputs.dry-run }}
+        # setup-node writes an _authToken line bound to NODE_AUTH_TOKEN, plus
+        # always-auth=true, falling back to the literal placeholder
+        # XXXXX-XXXXX-XXXXX-XXXXX when no token is set. npm then sends that
+        # placeholder on every request instead of exchanging its OIDC identity,
+        # which surfaced as `npm whoami` -> 401 and `npm publish` -> 404.
+        # Blanking it at step level leaves OIDC as the only auth path.
+        env:
+          NODE_AUTH_TOKEN: ''
         run: npm publish --provenance
 
       - name: Summary
