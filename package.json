@@ -1,7 +1,7 @@
 {
   "name": "@zzk-1015/vue-onlyoffice-local",
   "version": "2.0.1",
-  "description": "A Vue 3 plugin for fully-local OnlyOffice document editing. Aligns with the upstream onlyoffice-web-local v2.0.0 oo-offline architecture (API.js loaded from a self-hosted OnlyOffice 9.x offline vendor build; documents opened as blob URLs; imperative save() via postMessage file-stream hook).",
+  "description": "A Vue 3 plugin for fully local OnlyOffice editing: DOCX/XLSX/PPTX open as Blob URLs with no uploads and no document server. Live demo: https://onlyoffice.zkhi.top",
   "main": "./dist/vue-onlyoffice-local.umd.js",
   "module": "./dist/vue-onlyoffice-local.mjs",
   "types": "./dist/index.d.ts",
@@ -23,7 +23,10 @@
     "test": "vitest",
     "preview": "vite preview",
     "dev:playground": "vite dev --config vite.config.playground.ts",
-    "self-test": "node tests/integration/self-test.mjs"
+    "dev:demo": "vite dev --config vite.config.demo.ts",
+    "self-test": "node tests/integration/self-test.mjs",
+    "build:demo": "vite build --config vite.config.demo.ts",
+    "preview:demo": "vite preview --config vite.config.demo.ts"
   },
   "keywords": [
     "vue",
@@ -40,7 +43,7 @@
   "bugs": {
     "url": "https://github.com/zuoanCo/vue-onlyoffice-local/issues"
   },
-  "homepage": "https://github.com/zuoanCo/vue-onlyoffice-local#readme",
+  "homepage": "https://onlyoffice.zkhi.top",
   "author": "",
   "license": "MIT",
   "peerDependencies": {

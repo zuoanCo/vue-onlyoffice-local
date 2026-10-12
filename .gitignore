@@ -8,3 +8,6 @@ dist
 # local scratch harness for real-vendor end-to-end runs (contains a junction to a 679 MB build)
 .demo-real/
 
+# demo build output and the ~700 MB OnlyOffice offline build
+demo-dist
+demo/public/vendor

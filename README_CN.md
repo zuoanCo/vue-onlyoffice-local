@@ -6,6 +6,14 @@
 
 [English](./README.md) | [中文](./README_CN.md)
 
+## 在线演示
+
+**[onlyoffice.zkhi.top](https://onlyoffice.zkhi.top)**
+
+本插件的实际部署演示，包含完整的 OnlyOffice 9.x 离线编辑器构建。可以选择内置样例（DOCX / XLSX / PPTX），也可以打开自己本机的文件，在真实编辑器中编辑后下载保存。
+
+演示站点是纯静态的，没有任何应用后端：文档以 Blob URL 打开，不会上传到任何服务器。演示源码在 [`demo/`](./demo)（`npm run dev:demo` / `npm run build:demo`）。
+
 一个面向 Vue 3 的 OnlyOffice 文档**纯本地**编辑插件,与 [onlyoffice-web-local v2.0.0](https://github.com/sweetwisdom/onlyoffice-web-local) 的 oo-offline SDK 架构保持一致。
 
 可以在 Vue 3 应用中嵌入功能完整的 OnlyOffice 编辑器,**完全无需后端 Document Server**。本插件捆绑了上游 `oo-offline` SDK:文档以内存 blob URL 形式打开;编辑器从你自托管的 OnlyOffice 9.x 离线构建加载 `<baseUrl>/vendor/web-apps/apps/api/documents/api.js`;保存走命令式 `editor.save(format?)`,通过 `postMessage` 文件流 hook 返回 `SaveResult`。
@@ -240,6 +248,22 @@ npm install
 # 2) 启动 playground:
 npm run dev:playground
 ```
+
+### 运行公开演示
+
+`demo/` 目录就是 <https://onlyoffice.zkhi.top> 的源码。它是一个普通的 Vite SPA，通过 alias 直接引用 `src/` 中的库源码，因此修改演示无需重新构建 `dist/`。
+
+```bash
+# 1) 把 OnlyOffice 9.x 离线构建放到 demo/public/vendor/
+# 2) npm run dev:demo      # http://127.0.0.1:5174
+# 3) npm run build:demo    # 静态产物输出到 demo-dist/
+```
+
+`demo-dist/` 已加入 .gitignore。约 700 MB 的 `demo/public/vendor/` 也不会提交，请从上游 release 复制。
+
+> ⚠️ 请以 **gzip** 方式服务 vendor 构建。仅 `x2t.wasm` 未压缩就有约 62 MB，而 `X2TConverter` 的初始化超时只有 60 秒；以 `.gz`（约 13 MB）服务才能完成初始化。建议预先生成 `.gz` 副本并开启 `gzip_static on;`，而不是每次请求都压缩 62 MB。
+
+`demo/public/samples/` 中的样例文档由 `demo/scripts/make_samples.py` 生成，需要 `python-docx`、`openpyxl` 和 `python-pptx`。生成的文件已提交，只有想改样例内容时才需要运行它。
 
 ### 构建
 
