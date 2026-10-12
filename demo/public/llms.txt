@@ -1,0 +1,95 @@
+# vue-onlyoffice-local
+
+> A Vue 3 plugin for purely local OnlyOffice document editing. It opens and edits
+> DOCX, XLSX and PPTX entirely in the browser: no document server, no uploads, no
+> X2T conversion service. Documents are passed to the editor as Blob URLs and the
+> edited bytes are returned to the host component.
+
+Live demo: https://onlyoffice.zkhi.top
+Source: https://github.com/zuoanCo/vue-onlyoffice-local
+npm: https://www.npmjs.com/package/@zzk-1015/vue-onlyoffice-local
+License: MIT
+
+## Install
+
+```
+npm install @zzk-1015/vue-onlyoffice-local
+```
+
+## What it does
+
+- Renders a full OnlyOffice editor inside a Vue 3 app with one component.
+- Supports DOCX, XLSX and PPTX editing, plus PDF export.
+- Keeps the document in the browser. Nothing is uploaded to any server.
+- Returns the edited bytes to the host page through a postMessage file-stream
+  hook, exposed as an imperative `save(format?)` on the component's template ref.
+- Offers three entry points: the `<VueOnlyOfficeLocal>` component, the
+  `useOnlyOffice()` composable, and the headless `createEditor()` SDK.
+
+## Register the plugin
+
+```ts
+import { createApp } from 'vue';
+import VueOnlyOfficeLocal from '@zzk-1015/vue-onlyoffice-local';
+import '@zzk-1015/vue-onlyoffice-local/style.css';
+
+const app = createApp(App);
+app.use(VueOnlyOfficeLocal, {
+  defaultBaseUrl: '/',
+  globalConfig: { editorConfig: { lang: 'en' } },
+});
+app.mount('#app');
+```
+
+## Use the component
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { VueOnlyOfficeLocal } from '@zzk-1015/vue-onlyoffice-local';
+
+const editor = ref<InstanceType<typeof VueOnlyOfficeLocal> | null>(null);
+const file = ref<File | null>(null);
+
+async function download() {
+  const result = await editor.value?.save();
+  if (result) {
+    // result.buffer is an ArrayBuffer, result.fileName / result.fileType are set
+    triggerBrowserDownload(result.buffer, result.fileName, result.fileType);
+  }
+}
+</script>
+
+<template>
+  <VueOnlyOfficeLocal
+    v-if="file"
+    ref="editor"
+    :file="file"
+    file-name="report.docx"
+    base-url="/"
+    @error="onError"
+  />
+</template>
+```
+
+## Events
+
+`ready`, `document-ready`, `state-change`, `request-close`, `meta-change`,
+`save`, `error`.
+
+## Deployment requirement
+
+The plugin needs a self-hosted copy of the OnlyOffice 9.x offline vendor build
+(about 700 MB), served from your own origin. DocsAPI is loaded from
+`<baseUrl>/vendor/web-apps/apps/api/documents/api.js`; the SDK is served from
+`<baseUrl>/vendor/sdkjs/`.
+
+Serve that tree gzip-encoded. `x2t.wasm` alone is roughly 62 MB uncompressed and
+`X2TConverter` gives up after 60 seconds, so pre-build `.gz` sidecars and enable
+`gzip_static on;` rather than compressing the file on every request.
+
+## Architecture note
+
+This follows the `onlyoffice-web-local` v2.0.0 oo-offline architecture. The v1
+`defaultSdkUrl` and `defaultX2tUrl` options are deprecated and ignored since
+v2.0.0; conversion happens inside the offline editor build.

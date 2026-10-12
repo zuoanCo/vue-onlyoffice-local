@@ -2,6 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-black?logo=github)](https://github.com/zuoanCo/vue-onlyoffice-local)
+[![Stars](https://img.shields.io/github/stars/zuoanCo/vue-onlyoffice-local?style=social)](https://github.com/zuoanCo/vue-onlyoffice-local/stargazers)
 [![NPM Downloads](https://img.shields.io/npm/dm/@zzk-1015/vue-onlyoffice-local?logo=npm)](https://www.npmjs.com/package/@zzk-1015/vue-onlyoffice-local)
 
 [English](./README.md) | [中文](./README_CN.md)
@@ -298,6 +299,26 @@ want to change the sample content.
 npm run build
 ```
 
+### Keeping the demo counters fresh
+
+The live demo shows GitHub stars, forks and npm downloads. It does **not** call
+`api.github.com` from the visitor's browser: that endpoint is CORS-open but
+capped at 60 requests per hour per IP, which everyone behind one NAT would
+share, and `api.npmjs.org` is not reachable from every network.
+
+Instead the server refreshes a small snapshot every 30 minutes and serves it as
+static JSON:
+
+```bash
+/usr/local/bin/oo-demo-stats        # -> /var/www/onlyoffice/stats.json
+```
+
+```
+*/30 * * * * root /usr/local/bin/oo-demo-stats >/dev/null 2>&1
+```
+
+The script writes atomically and leaves the previous snapshot untouched if any
+upstream call fails, so a transient outage never blanks the counters.
 ## License
 
 MIT

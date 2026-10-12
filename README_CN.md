@@ -2,6 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-black?logo=github)](https://github.com/zuoanCo/vue-onlyoffice-local)
+[![Stars](https://img.shields.io/github/stars/zuoanCo/vue-onlyoffice-local?style=social)](https://github.com/zuoanCo/vue-onlyoffice-local/stargazers)
 [![NPM Downloads](https://img.shields.io/npm/dm/@zzk-1015/vue-onlyoffice-local?logo=npm)](https://www.npmjs.com/package/@zzk-1015/vue-onlyoffice-local)
 
 [English](./README.md) | [中文](./README_CN.md)
@@ -271,6 +272,21 @@ npm run dev:playground
 npm run build
 ```
 
+### 保持演示计数实时
+
+在线演示会展示 GitHub star、fork 和 npm 下载量。它不会在访客浏览器里直接请求 `api.github.com`：该接口虽然允许跨域，但每 IP 每小时只有 60 次额度，同一个 NAT 后的访客会共用；而 `api.npmjs.org` 并非所有网络都能访问。
+
+服务器每 30 分钟刷新一次快照，并以静态 JSON 提供：
+
+```bash
+/usr/local/bin/oo-demo-stats        # -> /var/www/onlyoffice/stats.json
+```
+
+```
+*/30 * * * * root /usr/local/bin/oo-demo-stats >/dev/null 2>&1
+```
+
+脚本原子写入，并且在任何一次上游请求失败时保留上一份快照，避免短暂故障把计数清空。
 ## 协议
 
 MIT

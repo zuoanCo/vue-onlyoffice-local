@@ -3,16 +3,183 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+
     <title>vue-onlyoffice-local — Purely local OnlyOffice editing for Vue 3</title>
     <meta
       name="description"
-      content="A Vue 3 plugin that opens and edits DOCX, XLSX and PPTX entirely in the browser. No document server, no uploads, no X2T conversion service."
+      content="Vue 3 plugin that opens and edits DOCX, XLSX and PPTX entirely in the browser. No document server, no uploads, no X2T conversion service. Live demo at onlyoffice.zkhi.top."
     />
-    <meta name="color-scheme" content="light" />
+    <meta
+      name="keywords"
+      content="vue, vue3, onlyoffice, docx editor, xlsx editor, pptx editor, offline onlyoffice, local document editor, blob url, no upload document editor"
+    />
+    <meta name="author" content="zuoanCo" />
+    <link rel="canonical" href="https://onlyoffice.zkhi.top/" />
+
+    <!-- npm / GitHub identity, mirrored from package.json so crawlers and
+         package managers agree on what this project is. -->
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="vue-onlyoffice-local" />
+    <meta property="og:url" content="https://onlyoffice.zkhi.top/" />
+    <meta property="og:title" content="vue-onlyoffice-local — OnlyOffice editing, entirely in the browser" />
+    <meta
+      property="og:description"
+      content="A Vue 3 plugin that opens and edits DOCX, XLSX and PPTX without a document server. The file becomes a Blob URL and never leaves the tab."
+    />
+    <meta property="og:image" content="https://onlyoffice.zkhi.top/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="vue-onlyoffice-local demo page headline on an off-white paper background" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="vue-onlyoffice-local — OnlyOffice editing, entirely in the browser" />
+    <meta
+      name="twitter:description"
+      content="A Vue 3 plugin that opens and edits DOCX, XLSX and PPTX without a document server. Nothing is uploaded."
+    />
+    <meta name="twitter:image" content="https://onlyoffice.zkhi.top/og.png" />
+    <meta name="twitter:image:alt" content="vue-onlyoffice-local demo page" />
+
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Generated at build time so the absolute URL is correct in the JSON-LD. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://onlyoffice.zkhi.top/#app",
+            "name": "vue-onlyoffice-local",
+            "alternateName": "@zzk-1015/vue-onlyoffice-local",
+            "url": "https://onlyoffice.zkhi.top/",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Any (runs in the browser)",
+            "description": "A Vue 3 plugin that opens and edits DOCX, XLSX and PPTX entirely in the browser. There is no document server: the OnlyOffice 9.x offline build runs in an iframe and the document is handed to it as a Blob URL, so nothing is uploaded.",
+            "softwareVersion": "2.0.1",
+            "license": "https://opensource.org/licenses/MIT",
+            "programmingLanguage": "TypeScript",
+            "featureList": [
+              "Edit DOCX, XLSX and PPTX without a document server",
+              "No uploads - the file stays in the browser tab",
+              "Imperative save() returns the edited bytes via a postMessage file-stream hook",
+              "Component, composable (useOnlyOffice) and headless SDK (createEditor) entry points"
+            ],
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "author": { "@type": "Person", "name": "zuoanCo", "url": "https://github.com/zuoanCo" },
+            "mainEntityOfPage": { "@type": "WebPage", "@id": "https://onlyoffice.zkhi.top/" }
+          },
+          {
+            "@type": "SoftwareSourceCode",
+            "@id": "https://onlyoffice.zkhi.top/#source",
+            "name": "zuoanCo/vue-onlyoffice-local",
+            "codeRepository": "https://github.com/zuoanCo/vue-onlyoffice-local",
+            "url": "https://github.com/zuoanCo/vue-onlyoffice-local",
+            "license": "https://opensource.org/licenses/MIT",
+            "programmingLanguage": ["TypeScript", "Vue"],
+            "runtimePlatform": "Web Browser",
+            "description": "Vue 3 plugin for fully local OnlyOffice document editing, aligned with the onlyoffice-web-local v2.0.0 oo-offline architecture.",
+            "keywords": "vue, vue3, onlyoffice, docx, xlsx, pptx, offline, local, editor",
+            "author": { "@type": "Person", "name": "zuoanCo", "url": "https://github.com/zuoanCo" }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://onlyoffice.zkhi.top/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Does vue-onlyoffice-local need a document server?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. The plugin uses the self-hosted OnlyOffice 9.x offline vendor build, which runs the editor kernel in the browser inside an iframe. There is no OnlyOffice Document Server to deploy, license or keep online, and no x2t conversion service."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is my document uploaded anywhere?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. The file you open is turned into a Blob URL and handed to the editor inside the same tab. Opening the network tab while you edit will not show a request carrying your document."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Which formats are supported?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "DOCX, XLSX and PPTX can be edited. Saving returns the edited bytes to the host page as an ArrayBuffer, and the editor can also export to PDF."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How do I get the edited file back?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Call save() on the component's template ref. The plugin hooks the editor's download path via postMessage and resolves with a SaveResult containing the buffer, file name and file type."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What do I need to host myself?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "A copy of the OnlyOffice 9.x offline vendor build, about 700 MB, served from your own origin under a path such as /vendor. The plugin loads DocsAPI from <baseUrl>/vendor/web-apps/apps/api/documents/api.js. Serve it gzip-encoded: x2t.wasm is roughly 62 MB uncompressed and X2TConverter aborts after 60 seconds."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>
+
+    <!-- Crawlers that do not execute JavaScript still get the substance here.
+         GEO matters: answer engines frequently quote plain server-delivered
+         text rather than a hydrated single-page app. -->
+    <noscript>
+      <main>
+        <h1>vue-onlyoffice-local</h1>
+        <p>
+          A Vue 3 plugin for purely local OnlyOffice document editing. It opens and
+          edits DOCX, XLSX and PPTX entirely in the browser: the file becomes a Blob
+          URL, the editor kernel runs in an iframe, and the edited bytes are returned
+          to the host component. There is no document server and nothing is uploaded.
+        </p>
+        <h2>Why it exists</h2>
+        <ul>
+          <li>No document server to deploy, license or keep online.</li>
+          <li>Privacy first: the document never leaves the visitor's browser tab.</li>
+          <li>Imperative <code>save()</code> returns the edited buffer over a postMessage file-stream hook.</li>
+          <li>Three entry points: the <code>&lt;VueOnlyOfficeLocal&gt;</code> component, the <code>useOnlyOffice()</code> composable and the headless <code>createEditor()</code> SDK.</li>
+          <li>TypeScript-first, MIT licensed.</li>
+        </ul>
+        <h2>Installation</h2>
+        <pre><code>npm install @zzk-1015/vue-onlyoffice-local</code></pre>
+        <h2>Usage</h2>
+        <pre><code>import VueOnlyOfficeLocal from '@zzk-1015/vue-onlyoffice-local';
+
+app.use(VueOnlyOfficeLocal, {
+  defaultBaseUrl: '/',
+  globalConfig: { editorConfig: { lang: 'en' } },
+});</code></pre>
+        <p>
+          The live demo on this page needs JavaScript, because the editor itself runs
+          in your browser. Source and full API reference:
+          <a href="https://github.com/zuoanCo/vue-onlyoffice-local">github.com/zuoanCo/vue-onlyoffice-local</a>.
+        </p>
+      </main>
+    </noscript>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

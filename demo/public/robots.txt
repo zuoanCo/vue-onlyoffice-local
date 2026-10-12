@@ -1,0 +1,52 @@
+# vue-onlyoffice.local demo - https://onlyoffice.zkhi.top/
+#
+# The whole site is one page plus the self-hosted OnlyOffice offline build.
+# Only the editor asset tree is worth excluding: it is ~700 MB of vendored
+# application code that no search engine should be crawling.
+
+User-agent: *
+Allow: /
+Allow: /samples/
+Disallow: /vendor/
+Disallow: /stats.json
+
+# Generative engine optimisation: the marketing content, the noscript copy and
+# the FAQ in the JSON-LD are all written to be quoted by answer engines, so the
+# mainstream AI crawlers are welcome explicitly rather than left to the wildcard.
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: meta-externalagent
+Allow: /
+
+Sitemap: https://onlyoffice.zkhi.top/sitemap.xml

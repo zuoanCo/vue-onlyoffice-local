@@ -1,0 +1,12 @@
+{
+  "name": "vue-onlyoffice-local",
+  "short_name": "vue-onlyoffice",
+  "description": "Purely local OnlyOffice editing for Vue 3",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f6f3",
+  "theme_color": "#16181d",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

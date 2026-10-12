@@ -7,7 +7,7 @@
  * are static assets, and every edit happens inside the OnlyOffice iframe that
  * the plugin mounts.
  */
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { VueOnlyOfficeLocal, type SaveResult } from 'vue-onlyoffice-local'
 
 declare const __DEMO_VERSION__: string
@@ -313,6 +313,53 @@ const steps = [
   },
 ]
 
+interface RepoStats {
+  stars: number
+  forks: number
+  openIssues: number
+  pushedAt: string
+  version: string
+  generatedAt: string
+  downloads: { lastweek: number; lastmonth: number; lastyear: number }
+}
+
+const stats = ref<RepoStats | null>(null)
+const statsFailed = ref(false)
+
+/**
+ * /stats.json is written every 30 minutes by /usr/local/bin/oo-demo-stats on the
+ * server. It is deliberately not fetched live from api.github.com in here:
+ * that endpoint is CORS-open but capped at 60 requests per hour per IP, which
+ * every visitor behind the same NAT would share, and the npm API is not
+ * reachable from every network.
+ */
+async function loadStats() {
+  try {
+    const res = await fetch('/stats.json', { cache: 'no-cache' })
+    if (!res.ok) throw new Error(String(res.status))
+    stats.value = (await res.json()) as RepoStats
+  } catch {
+    // Leave the strip hidden rather than showing stale or invented numbers.
+    statsFailed.value = true
+  }
+}
+
+const nf = new Intl.NumberFormat('en-US')
+const formatCount = (n: number) => (n >= 1000 ? nf.format(Math.round(n / 100) / 10) + 'k' : nf.format(n))
+
+const statsAge = computed(() => {
+  const iso = stats.value?.generatedAt
+  if (!iso) return ''
+  const mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000))
+  if (mins < 1) return 'just now'
+  if (mins < 60) return mins + ' min ago'
+  const hours = Math.round(mins / 60)
+  if (hours < 24) return hours + ' h ago'
+  return Math.round(hours / 24) + ' d ago'
+})
+
+onMounted(loadStats)
+
 const links = [
   { href: REPO, label: 'Source' },
   { href: `${REPO}#readme`, label: 'Readme' },
@@ -381,6 +428,44 @@ const links = [
                 Read the source
               </a>
             </div>
+
+            <dl v-if="stats" class="hero__stats">
+              <div>
+                <dt>GitHub stars</dt>
+                <dd>
+                  <a :href="REPO + '/stargazers'" target="_blank" rel="noreferrer noopener">{{
+                    formatCount(stats.stars)
+                  }}</a>
+                </dd>
+              </div>
+              <div>
+                <dt>Forks</dt>
+                <dd>
+                  <a :href="REPO + '/network/members'" target="_blank" rel="noreferrer noopener">{{
+                    formatCount(stats.forks)
+                  }}</a>
+                </dd>
+              </div>
+              <div>
+                <dt>npm / week</dt>
+                <dd>
+                  <a
+                    href="https://www.npmjs.com/package/@zzk-1015/vue-onlyoffice-local"
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    >{{ formatCount(stats.downloads.lastweek) }}</a
+                  >
+                </dd>
+              </div>
+              <div>
+                <dt>npm / year</dt>
+                <dd>{{ formatCount(stats.downloads.lastyear) }}</dd>
+              </div>
+              <p class="hero__stats-fresh">
+                <span class="live-dot" aria-hidden="true" />
+                Live from the GitHub and npm APIs, refreshed {{ statsAge }}
+              </p>
+            </dl>
           </div>
           <div class="hero__meta">
             <dl>
